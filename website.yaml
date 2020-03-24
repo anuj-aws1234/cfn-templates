@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: s3.template - Creates the necessary S3 bucket.
+Parameters:
+  BucketName: 
+    Type: String
+    AllowedPattern: '^([a-z0-9]+[\.\-]?[a-z0-9]*)+[a-z0-9.]$'
+    ConstraintDescription: The bucket name must contain only lowercase letters, numbers, periods (.),and dashes (-).
+    Description: The name of the bucket to use. Must be unique.
+  AccessControl:  
+    Default: BucketOwnerFullControl
+    Type: String
+    ConstraintDescription: >-
+      Must be either AuthenticatedRead, AwsExecRead, BucketOwnerRead,
+      BucketOwnerFullControl, LogDeliveryWrite, Private, PublicRead or
+      PublicReadWrite.
+    Description: Define ACL for Bucket.
+    AllowedValues:
+      - AuthenticatedRead
+      - AwsExecRead
+      - BucketOwnerRead
+      - BucketOwnerFullControl
+      - LogDeliveryWrite
+      - Private
+      - PublicRead
+      - PublicReadWrite
+  Website:
+    Default: 'No'
+    Type: String
+    ConstraintDescription: Must be yes or no
+    Description: Define WebsiteConfiguration.
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+  IndexDocument:
+    Default: index.html
+    Type: String
+    Description: Name for Index Document file
+  ErrorDocument:
+    Default: error.html
+    Type: String
+    Description: Name for Error Document file
+Conditions:
+  Website: !Equals 
+    - !Ref Website
+    - 'Yes'
+Resources:
+  Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: !Ref AccessControl
+      WebsiteConfiguration: !If 
+        - Website
+        - IndexDocument: !Ref IndexDocument
+          ErrorDocument: !Ref ErrorDocument
+        - !Ref 'AWS::NoValue'
+      BucketName: !Ref BucketName	  
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref Bucket
+                - /*
+      Bucket: !Ref Bucket
+Outputs:
+  WebsiteURL:
+    Value: !GetAtt 
+      - Bucket
+      - WebsiteURL
+    Description: URL for website hosted on S3
+  S3BucketSecureURL:
+    Value: !Join 
+      - ''
+      - - 'https://'
+        - !GetAtt 
+          - Bucket
+          - DomainName
+    Description: Name of S3 bucket to hold website content
+  OriginDomainNameforcloudfront:
+    Value: !GetAtt
+      - Bucket
+      - DomainName 
+    Export:
+      Name: OriginDomainNameforcloudfront
